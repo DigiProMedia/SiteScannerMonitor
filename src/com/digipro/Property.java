@@ -11,5 +11,6 @@ public class Property {
 	public static final String SCAN_REPORT_URL = "REPORT_URL";
 	public static final String CHANNELS = "CHANNELS";
 	public static final String GROUPS = "GROUPS";
+	public static final String REPORT_RECIPIENTS = "REPORT_RECIPIENTS";
 
 }

@@ -26,24 +26,28 @@ public class Monitor {
 	static final Log log = LogFactory.getLog(Monitor.class);
 
 	public static void main(String[] args) {
-		if (args == null) {
-			log.warn("args not specified. Defaulting to scancheck");
-			args = new String[1];
-			args[0] = "scancheck";
+		if (args.length == 0) {
+			log.warn("args not specified. Defaulting to report");
+			args = new String[2];
+			args[0] = "report";
+			args[1] = "1"; // Day
 		}
+
+		if (args[0].equals("report") && args.length != 2)
+			throw new RuntimeException("Number of days must be passed as the second parameter");
 
 		loadProperties();
 		dao = new MonitorDao(properties);
 
 		if (args[0].equals("report"))
-			sendReport();
+			sendReport(Integer.valueOf(args[1]));
 		else
 			checkScanProcesses();
 	}
 
-	private static void sendReport() {
+	private static void sendReport(int days) {
 		ReportEmailService emailService = new ReportEmailService(dao, properties);
-		emailService.checkAndSendReport();
+		emailService.checkAndSendReport(days);
 	}
 
 	public static void checkScanProcesses() {

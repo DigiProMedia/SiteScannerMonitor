@@ -32,6 +32,8 @@ public class MonitorDao extends BaseDao {
 			if (scanScope != null)
 				sql += " and vch_scan_scope = ? ";
 
+			sql += " order by n_a_issue_count desc ";
+
 			stmt = conn.prepareStatement(sql);
 			stmt.setTimestamp(1, new Timestamp(from.getTimeInMillis()));
 

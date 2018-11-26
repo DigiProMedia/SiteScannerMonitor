@@ -1,7 +1,6 @@
 package com.digipro;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Properties;
@@ -25,9 +24,8 @@ import com.amazonaws.services.simpleemail.model.SendEmailRequest;
  *
  */
 public class ReportEmailService {
-	private static final String SUBJECT = "Daily Scan Report - %s Free : %s Paid ";
-	private static final String FROM = "james@digipromedia.com";
-	private static final String TO = "james@digipromedia.com";
+	private static final String SUBJECT = "Daily Scan Report - %s Free : %s Full ";
+	private static final String FROM = "support@adotpro.com";
 
 	private MonitorDao dao;
 	private Properties properties;
@@ -37,27 +35,35 @@ public class ReportEmailService {
 		this.properties = properties;
 	}
 
-	public void checkAndSendReport() {
+	public void checkAndSendReport(int days) {
 		AmazonSimpleEmailService client = createSESClient();
 		StringBuilder emailBody = new StringBuilder();
 
 		Calendar from = Calendar.getInstance();
-		from.add(Calendar.DAY_OF_YEAR, -1);
+		from.add(Calendar.DAY_OF_YEAR, -days);
 
 		System.err.println(from.getTime());
 		List<ScanReport> freeList = dao.getScans("vch_basic_scan_id", "ss_basic_scan", "scopeFolder", from);
 		List<ScanReport> paidList = dao.getScans("vch_full_scan_id", "ss_full_scan", null, from);
 
 		if (freeList.size() == 0 && paidList.size() == 0) {
-			emailBody.append("No scans within the last 24 hours");
+			emailBody.append(String.format("No scans within the last %s days%", days, (days == 1 ? "" : "s")));
 		} else {
+			emailBody.append(String.format("<h1>Period: Last %s</h1>", (days == 1 ? "24 hours" : days + " days")));
 			addScansToBody(emailBody, freeList, "Free Scans", ScanType.BASIC_FOLDER, properties);
-			addScansToBody(emailBody, paidList, "Paid Scans", ScanType.FULL, properties);
+			addScansToBody(emailBody, paidList, "Full Scans", ScanType.FULL, properties);
 		}
+
+		emailBody.append("<br><br><br><br>");
+
+		List<String> toList = new ArrayList<>();
+		String[] recipients = properties.getProperty(Property.REPORT_RECIPIENTS).split(",");
+		for (String recipient : recipients)
+			toList.add(recipient);
 
 		SendEmailRequest request = new SendEmailRequest()
 				.withDestination(
-						new Destination().withToAddresses(TO))
+						new Destination().withToAddresses(toList))
 				.withMessage(new Message()
 						.withBody(new Body().withHtml(new Content().withCharset("UTF-8").withData(emailBody.toString()))
 								.withText(new Content().withCharset("UTF-8").withData("")))
@@ -76,16 +82,18 @@ public class ReportEmailService {
 		if (reportList.size() == 0)
 			return;
 
-		html.append("<h2>" + title + " - " + reportList.size() + "</h2><br><br>");
+		html.append("<h2>" + title + " - " + reportList.size() + "</h2>");
 		html.append(
-				"<table width=\"100%\"><tr><td><b>URL</b></td><td><b>Email</b></td><td><b>Report</b></td><td><b>A</b></td><td><b>AA</b></td><td><b>Status</b></td><td><b>Scan Time</b></td><td><b>Error</b></td></tr>");
-
+				"<table cellspacing=\"0\" cellpadding=\"2\" width=\"100%\"><tr><td><b>URL</b></td><td><b>Email</b></td><td><b>Report</b></td><td><b>A</b></td><td><b>AA</b></td><td><b>Status</b></td><td><b>Scan Time</b></td><td><b>Internal</b></td><td><b>Error</b></td></tr>");
+		int count = 0;
 		for (ScanReport report : reportList) {
-			html.append("<tr>");
+			if (count++ % 2 == 0)
+				html.append("<tr bgcolor=\"#f6eaea\" style=\"padding-bottom:5px;padding-top:5px;\">");
+			else
+				html.append("<tr>");
+
 			html.append("<td>" + report.getUrl() + "</td>");
 			html.append("<td>" + report.getEmailAddress() + "</td>");
-			html.append("<td>" + report.getTotalAIssues() + "</td>");
-			html.append("<td>" + report.getTotalAAIssues() + "</td>");
 
 			if (report.getStatus() == -1)
 				html.append("<td></td>");
@@ -93,12 +101,17 @@ public class ReportEmailService {
 				html.append("<td><a href=\"" + ChannelGroupFactory.getChannelScanUrl(scanType, report, properties)
 						+ "\">Report</td>");
 
+			html.append("<td>" + report.getTotalAIssues() + "</td>");
+			html.append("<td>" + report.getTotalAAIssues() + "</td>");
+
 			if (report.getStatus() == -1)
 				html.append("<td>Error</td>");
 			else
 				html.append("<td>Complete</td>");
 
 			html.append("<td>" + formatTime(report.getSecondsToProcess()) + "</td>");
+
+			html.append("<td>" + (report.isInternal() ? "Yes" : "No") + "</td>");
 
 			html.append("<td>" + StringUtils.defaultIfBlank(report.getProcessError(), "") + "</td>");
 
