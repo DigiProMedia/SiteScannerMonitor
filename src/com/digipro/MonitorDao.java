@@ -66,6 +66,46 @@ public class MonitorDao extends BaseDao {
 		return reportList;
 	}
 
+	public List<ScanReport> getInProgressAndPendingFullScans() {
+		ResultSet rs = null;
+		Connection conn = null;
+		PreparedStatement stmt = null;
+		List<ScanReport> reportList = new ArrayList<>();
+		try {
+			DataSource dataSource = getDS();
+			conn = dataSource.getConnection();
+
+			String sql = "SELECT * from ss_full_scan "
+					+ " where n_campaign_id = 0 and n_status in(0,1) and b_test = 0 and b_bulk_scan = 0 ";
+			sql += " order by d_created desc ";
+
+			stmt = conn.prepareStatement(sql);
+
+			rs = stmt.executeQuery();
+			while (rs.next()) {
+				ScanReport scan = new ScanReport();
+				scan.setScanId(rs.getString("vch_full_scan_id"));
+				scan.setUrl(rs.getString("vch_url"));
+				scan.setEmailAddress(rs.getString("vch_email_address"));
+				scan.setStatus(rs.getInt("n_status"));
+
+				Calendar now = Calendar.getInstance();
+				Calendar created = Calendar.getInstance();
+				created.setTimeInMillis(rs.getTimestamp("d_created").getTime());
+				scan.setSecondsToProcess((int) (now.getTimeInMillis() - created.getTimeInMillis()) / 1000);
+
+				reportList.add(scan);
+			}
+
+		} catch (Exception sqlException) {
+			throw new RuntimeException(sqlException);
+		} finally {
+			cleanup(rs, conn, stmt);
+		}
+
+		return reportList;
+	}
+
 	public LastAccess getLastAccess(String ipAddress, ScanType scanType) {
 
 		ResultSet rs = null;

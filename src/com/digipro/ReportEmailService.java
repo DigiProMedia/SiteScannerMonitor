@@ -45,6 +45,7 @@ public class ReportEmailService {
 		System.err.println(from.getTime());
 		List<ScanReport> freeList = dao.getScans("vch_basic_scan_id", "ss_basic_scan", "scopeFolder", from);
 		List<ScanReport> paidList = dao.getScans("vch_full_scan_id", "ss_full_scan", null, from);
+		List<ScanReport> pendingList = dao.getInProgressAndPendingFullScans();
 
 		if (freeList.size() == 0 && paidList.size() == 0) {
 			emailBody.append(String.format("No scans within the last %s days%", days, (days == 1 ? "" : "s")));
@@ -53,6 +54,8 @@ public class ReportEmailService {
 			addScansToBody(emailBody, freeList, "Free Scans", ScanType.BASIC_FOLDER, properties);
 			addScansToBody(emailBody, paidList, "Full Scans", ScanType.FULL, properties);
 		}
+
+		addPendingScansToBody(emailBody, pendingList, "Pending Scans", ScanType.BASIC_FOLDER, properties);
 
 		emailBody.append("<br><br><br><br>");
 
@@ -75,6 +78,41 @@ public class ReportEmailService {
 		// .withConfigurationSetName(CONFIGSET);
 		client.sendEmail(request);
 		System.out.println("Email sent!");
+	}
+
+	private void addPendingScansToBody(StringBuilder html, List<ScanReport> pendingList, String title,
+			ScanType basicFolder, Properties properties) {
+
+		if (pendingList.size() == 0)
+			return;
+
+		html.append("<h2>" + title + " - " + pendingList.size() + "</h2>");
+		html.append(
+				"<table cellspacing=\"0\" cellpadding=\"2\" width=\"100%\"><tr><td><b>URL</b></td><td><b>Email</b></td><td><b>Status</b></td><td><b>Scan Time</b></td></tr>");
+		int count = 0;
+		for (ScanReport report : pendingList) {
+			if (count++ % 2 == 0)
+				html.append("<tr bgcolor=\"#f6eaea\" style=\"padding-bottom:5px;padding-top:5px;\">");
+			else
+				html.append("<tr>");
+
+			html.append("<td>" + report.getUrl() + "</td>");
+			html.append("<td>" + report.getEmailAddress() + "</td>");
+
+			if (report.getStatus() == 0)
+				html.append("<td>Queued</td>");
+			else
+				html.append("<td>In Progress</td>");
+
+			if (report.getStatus() == 0)
+				html.append("<td></td>");
+			else
+				html.append("<td>" + formatTime(report.getSecondsToProcess()) + "</td>");
+
+			html.append("</tr>");
+		}
+
+		html.append("</table>");
 	}
 
 	private void addScansToBody(StringBuilder html, List<ScanReport> reportList, String title, ScanType scanType,

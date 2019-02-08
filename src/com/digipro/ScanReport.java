@@ -12,7 +12,7 @@ public class ScanReport {
 	String url;
 	String emailAddress;
 	String reportUrl;
-	long duration;
+
 	boolean internal;
 	int status;
 
@@ -38,14 +38,6 @@ public class ScanReport {
 
 	public void setInternal(boolean internal) {
 		this.internal = internal;
-	}
-
-	public long getDuration() {
-		return duration;
-	}
-
-	public void setDuration(long duration) {
-		this.duration = duration;
 	}
 
 	public String getReportUrl() {
