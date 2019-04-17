@@ -25,12 +25,22 @@ public class Monitor {
 	static final int INACTIVE_PERIOD_MINS = 10;
 	static final Log log = LogFactory.getLog(Monitor.class);
 
+	/**
+	 * Args:
+	 *  0 - Monitor type: 
+	 *  	report - Scan Results report (daily or weekly controlled  by second params (day)
+	 *  	scancheck - Trigger a scan check. This is due to an issue that still needs to be resolved. Scan check will restart the services if required
+	 *      issuesReport - This is just a report to me to monitor for issues so we can catch them early. Runs every 30 minutes
+	 *  1 - Frequency
+	 *  	days for "report"
+	 *  	minutes for "issuesReport"
+	 */
 	public static void main(String[] args) {
 		if (args.length == 0) {
 			log.warn("args not specified. Defaulting to report");
 			args = new String[2];
-			args[0] = "report";
-			args[1] = "1"; // Day
+			args[0] = "issuesReport";
+			args[1] = "30"; // Minutes
 		}
 
 		if (args[0].equals("report") && args.length != 2)
@@ -41,8 +51,15 @@ public class Monitor {
 
 		if (args[0].equals("report"))
 			sendReport(Integer.valueOf(args[1]));
+		else if (args[0].equals("issuesReport"))
+			sendIssuesReport(Integer.valueOf(args[1]));
 		else
 			checkScanProcesses();
+	}
+
+	private static void sendIssuesReport(int minutes) {
+		ReportEmailService emailService = new ReportEmailService(dao, properties);
+		emailService.checkAndSendIssuesReport(minutes);
 	}
 
 	private static void sendReport(int days) {
@@ -107,8 +124,7 @@ public class Monitor {
 		}
 	}
 
-	private static LastAccess getLastAccess(String scanEnabledProperty, ScanType scanType,
-			List<LastAccess> accessList) {
+	private static LastAccess getLastAccess(String scanEnabledProperty, ScanType scanType, List<LastAccess> accessList) {
 		if (properties.getProperty(scanEnabledProperty, "false").equals("true")) {
 			access = dao.getLastAccess(ipAddress, scanType);
 			if (access != null) {
